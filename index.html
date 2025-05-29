@@ -1,1 +1,1016 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Elon Iteration: Your Playbook</title>
+    <meta name="description" content="An interactive data story exploring lessons from Elon Musk's journey, designed for entrepreneurs.">
+    <!-- Favicon (example, embedded SVG) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
+
+    <style>
+        /* style.css CONTENT STARTS HERE */
+        :root {
+            --primary-font: 'Arial', sans-serif; /* Choose a suitable modern font */
+            --text-color: #e0e0e0;
+            --bg-color: #0a0f18; /* Deep, dark blue/black */
+            --accent-color-tesla: #00aaff; /* Electric blue */
+            --accent-color-spacex: #ff4500; /* Fiery orange */
+            --accent-color-neuralink: #9370db; /* Synaptic purple */
+            --accent-color-xai: #f0f8ff; /* Cool white/cyan */
+            --accent-color-doge: #808080; /* Grey */
+            --warning-color: #ffcc00;
+            --danger-color: #ff3b30;
+            --success-color: #34c759;
+            --highlight-bg: rgba(255, 255, 255, 0.1);
+
+            --animation-duration-normal: 0.5s;
+            --animation-duration-fast: 0.3s;
+        }
+
+        /* Basic Reset & Setup */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: var(--primary-font);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            overflow-x: hidden; /* Prevent horizontal scroll */
+            /* Initially hide scrollbar until content is ready */
+            overflow-y: hidden;
+        }
+
+        /* Accessibility */
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* Loading Screen */
+        #loading-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity var(--animation-duration-normal) ease-out;
+        }
+        #loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .loader-text { font-size: 1.5em; margin-bottom: 20px; }
+        #loading-canvas { width: 200px; height: 100px; } /* Simple canvas for loading animation */
+
+        /* Main Experience Container */
+        #experience-container {
+            width: 100%;
+            perspective: 1000px; /* For 3D-ish effects on scroll if desired */
+        }
+
+        /* Scenes */
+        .scene {
+            min-height: 100vh; /* Full viewport height */
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 5vh 5vw;
+            position: relative; /* For absolute positioning of canvas or overlays */
+            opacity: 0; /* Initially hidden, revealed by JS */
+            transform: translateY(50px); /* Initial subtle animation */
+            transition: opacity var(--animation-duration-normal) ease-out, transform var(--animation-duration-normal) ease-out;
+            will-change: opacity, transform;
+        }
+        .scene.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .content-wrapper {
+            max-width: 800px;
+            text-align: center;
+            position: relative; /* Ensure text is above canvas */
+            z-index: 10;
+        }
+
+        /* Particle Canvases */
+        .particle-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1; /* Behind content */
+            pointer-events: none; /* Allow clicks through to content */
+        }
+
+        /* Typography & Morphing Elements */
+        h1, h2, h3 {
+            margin-bottom: 0.8em;
+            font-weight: 300; /* Lighter for modern feel */
+            letter-spacing: 1px;
+        }
+        h1 { font-size: clamp(2.5rem, 6vw, 4.5rem); }
+        h2.scene-title { font-size: clamp(2rem, 5vw, 3.5rem); }
+        h3 { font-size: clamp(1.5rem, 4vw, 2.5rem); color: var(--accent-color-xai); }
+
+        .morphing-title, .morphing-number {
+            display: inline-block; /* Or block, depending on use */
+            transition: transform var(--animation-duration-fast), color var(--animation-duration-fast);
+            will-change: transform, contents; /* 'contents' for number changes */
+        }
+        .morphing-title span { /* For letter-by-letter animation */
+             display: inline-block;
+             will-change: opacity, transform;
+        }
+
+        .large-stat .morphing-number {
+            font-size: clamp(2rem, 7vw, 5rem);
+            font-weight: bold;
+            color: var(--accent-color-tesla); /* Example, can be dynamic */
+        }
+        .data-point { margin: 1em 0; font-size: 1.1em; }
+        .data-point.success .morphing-number { color: var(--success-color); }
+        .data-point.danger .morphing-number { color: var(--danger-color); }
+
+
+        .highlight {
+            background-color: var(--highlight-bg);
+            padding: 0.1em 0.3em;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .user-takeaway {
+            margin-top: 1.5em;
+            font-size: 1.2em;
+            border-left: 3px solid var(--accent-color-xai);
+            padding-left: 1em;
+            text-align: left;
+        }
+
+        /* Buttons */
+        .cta-button {
+            padding: 0.8em 1.5em;
+            font-size: 1.1em;
+            background-color: var(--accent-color-tesla);
+            color: var(--bg-color);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color var(--animation-duration-fast), transform var(--animation-duration-fast);
+            margin-top: 1.5em;
+            font-weight: bold;
+            will-change: transform;
+        }
+        .cta-button:hover, .cta-button:focus {
+            background-color: var(--accent-color-spacex);
+            transform: translateY(-3px) scale(1.05);
+            outline: 2px solid var(--accent-color-spacex);
+            outline-offset: 2px;
+        }
+
+        /* Specific Scene Styling (Example) */
+        #opening-hook { background: radial-gradient(circle, #1a2333 0%, var(--bg-color) 70%); }
+        /* #act-two-storm .morphing-number { color: var(--danger-color); } Handled by .data-point.danger */
+
+        /* Lesson Summary Cards (Resolution) */
+        #lessons-summary-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5em;
+            margin: 2em 0;
+            width: 100%;
+        }
+        .lesson-card {
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 1.5em;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: transform var(--animation-duration-fast), box-shadow var(--animation-duration-fast);
+            text-align: left;
+            will-change: transform, box-shadow;
+        }
+        .lesson-card:hover, .lesson-card.active-lesson {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            border-color: var(--accent-color-xai);
+        }
+        .lesson-card h4 { margin-top: 0; color: var(--accent-color-tesla); }
+        .lesson-card p { font-size: 0.9em; }
+        .lesson-card .tool-icon { /* Style for tool icons, maybe SVG */ float: right; opacity: 0.7; }
+
+        /* Generative Art Canvas */
+        #generative-art-canvas {
+            width: 100%;
+            max-width: 400px;
+            height: 200px;
+            background-color: rgba(0,0,0,0.2);
+            border-radius: 5px;
+            margin: 1em auto;
+            display: block;
+        }
+        #generative-art-container .caption { font-size: 0.8em; opacity: 0.7; }
+
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            h1 { font-size: clamp(2rem, 8vw, 3rem); }
+            .content-wrapper { padding: 0 5vw; } /* Changed from child padding */
+            #lessons-summary-container { grid-template-columns: 1fr; }
+        }
+
+        /* Reduced Motion Preference */
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            .scene, .cta-button, .lesson-card, .morphing-title span {
+                transition: opacity var(--animation-duration-normal) ease-out; /* Only opacity */
+                transform: none !important; /* Disable transforms */
+            }
+            /* Disable complex particle animations or simplify them */
+            /* JS should check this too for its animations */
+        }
+        /* style.css CONTENT ENDS HERE */
+    </style>
+</head>
+<body>
+    <div id="loading-screen">
+        <div class="loader-text">Assembling the Blueprint...</div>
+        <canvas id="loading-canvas"></canvas>
+    </div>
+
+    <main id="experience-container" aria-live="polite">
+        <!-- Screen Reader Announcer -->
+        <div id="sr-announcer" class="visually-hidden" aria-live="assertive" aria-atomic="true"></div>
+
+        <section id="opening-hook" class="scene" data-scene-name="Opening: The Entrepreneur's Gaze">
+            <div class="content-wrapper">
+                <canvas id="empire-canvas" class="particle-canvas"></canvas>
+                <h1 class="morphing-title" data-text="The Elon Iteration">The Elon Iteration</h1>
+                <p class="intro-text">You stand at a crossroads. Ambition burns. Adversity looms.</p>
+                <p class="question-text">His empire. His gamble. <strong>Your lessons.</strong></p>
+                <button id="begin-journey-btn" class="cta-button" aria-label="Begin journey, scroll to next section">Dare to Explore?</button>
+            </div>
+        </section>
+
+        <section id="act-one-doge" class="scene" data-scene-name="Act I: The Audacious Detour">
+            <div class="content-wrapper">
+                <canvas id="doge-canvas" class="particle-canvas"></canvas>
+                <h2 class="scene-title morphing-title" data-text="The DOGE Gambit">The DOGE Gambit</h2>
+                <p>Early 2025: Musk helms the Department of Government Efficiency (DOGE).</p>
+                <div class="data-point large-stat">
+                    Goal: Slash <span class="morphing-number" data-target="2000000000000" data-prefix="$" data-suffix=" Trillion">...</span> Federal Spending.
+                </div>
+                <div class="data-point">
+                    Reality: <span class="morphing-number" data-target="160000000000" data-prefix="$" data-suffix=" Billion">...</span> targeted in 3 months.
+                </div>
+                <div class="data-point">
+                    Impact: <span class="morphing-number" data-target="260000" data-suffix=" ">...</span>Gov workers face layoffs/buyouts.
+                </div>
+                <p class="takeaway-prompt">Scroll to see the ripples...</p>
+            </div>
+        </section>
+
+        <section id="lesson-one-vision-execution" class="scene lesson-scene" data-scene-name="Lesson 1: Vision vs. Execution">
+            <div class="content-wrapper">
+                <canvas id="lesson1-canvas" class="particle-canvas"></canvas>
+                <h3>Lesson 1: Vision vs. Execution</h3>
+                <p>A grand vision inspires, but chaotic implementation (<span class="highlight">mistaken firings, lawsuits</span>) erodes trust.</p>
+                <div class="data-point">Musk's DOGE: <span class="highlight">Bold vision, stumbled execution.</span></div>
+                <div class="data-point">Neuralink's BCI: <span class="highlight">3,072 channels - precision in tech.</span></div>
+                <p class="user-takeaway"><strong>Your Takeaway:</strong> Map goals with precise, measurable steps.</p>
+            </div>
+        </section>
+
+        <section id="act-two-storm" class="scene" data-scene-name="Act II: Navigating the Storm">
+            <div class="content-wrapper">
+                <canvas id="storm-canvas" class="particle-canvas"></canvas>
+                <h2 class="scene-title morphing-title" data-text="The Storm Gathers">The Storm Gathers</h2>
+                <p>The empire feels the strain. Legal challenges mount.</p>
+                <div class="data-point large-stat danger">
+                    <span class="morphing-number" data-target="40" data-suffix="+">...</span> Federal Cases
+                </div>
+                <div class="data-point large-stat danger">
+                    Liabilities: <span class="morphing-number" data-target="2370000000" data-prefix="$" data-suffix=" Billion+">...</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="lesson-two-regulatory" class="scene lesson-scene" data-scene-name="Lesson 2: Regulatory Headwinds">
+            <div class="content-wrapper">
+                 <canvas id="lesson2-canvas" class="particle-canvas"></canvas>
+                <h3>Lesson 2: Anticipate Regulatory Headwinds</h3>
+                <p>Scrutiny from <span class="highlight">SEC, NLRB, NHTSA, OSHA</span>. Grok for government use sparks privacy concerns.</p>
+                <p class="user-takeaway"><strong>Your Takeaway:</strong> Compliance isn't optional. Budget <span class="highlight">10-15%</span> of initial capital for legal. Engage regulators proactively.</p>
+            </div>
+        </section>
+
+        <section id="lesson-three-perception" class="scene lesson-scene" data-scene-name="Lesson 3: Public Perception">
+            <div class="content-wrapper">
+                <canvas id="lesson3-canvas" class="particle-canvas"></canvas>
+                <h3>Lesson 3: Public Perception Shapes Brand</h3>
+                <p>Political alignment tanks Tesla's European sales. <span class="highlight danger">71% profit drop.</span></p>
+                <p>Scott Galloway: A <span class="highlight">"brand management error."</span></p>
+                <p class="user-takeaway"><strong>Your Takeaway:</strong> Monitor sentiment (e.g., Hootsuite). Balance bold moves with transparency.</p>
+            </div>
+        </section>
+        
+        <section id="lesson-five-wellbeing" class="scene lesson-scene" data-scene-name="Lesson 5: Balance Ambition & Well-being">
+             <div class="content-wrapper">
+                <canvas id="lesson5-canvas" class="particle-canvas"></canvas>
+                <h3>Lesson 5: Balance Ambition & Well-being</h3>
+                <p>Musk's demanding leadership: <span class="highlight">7 days a week, burnout, high turnover.</span></p>
+                <p>Unpredictable X posts cause stock swings, legal scrutiny.</p>
+                <p class="user-takeaway"><strong>Your Takeaway:</strong> Ambition fuels, burnout kills. Cap hours (<span class="highlight">50-60/week</span>). Foster rest (e.g., Trello for workload).</p>
+            </div>
+        </section>
+
+        <section id="act-three-pivot" class="scene" data-scene-name="Act III: The Pivot">
+            <div class="content-wrapper">
+                <canvas id="pivot-canvas" class="particle-canvas"></canvas>
+                <h2 class="scene-title morphing-title" data-text="The Strategic Pivot">The Strategic Pivot</h2>
+                <p>May 2025: Musk exits DOGE. <span class="highlight">"Entrenched interests,"</span> he claims.</p>
+                <div class="data-point">Claimed Savings: <span class="morphing-number" data-target="160000000000" data-prefix="$" data-suffix=" Billion">...</span> (Goal: $1 Trillion)</div>
+                <div class="data-point success">Tesla Stock: <span class="morphing-number" data-target="25" data-suffix="% Surge" data-is-percentage="true">...</span></div>
+                <div class="data-point success">SpaceX: <span class="morphing-number" data-target="450" data-suffix="th Falcon Landing">...</span></div>
+            </div>
+        </section>
+
+        <section id="lesson-four-pivot-strategically" class="scene lesson-scene" data-scene-name="Lesson 4: Pivot Strategically">
+            <div class="content-wrapper">
+                <canvas id="lesson4-canvas" class="particle-canvas"></canvas> 
+                <h3>Lesson 4: Pivot Strategically, Not Reactively</h3>
+                <p>Refocus on <span class="highlight">SpaceX, Tesla, xAI</span>. Mars missions, autonomous robotaxis.</p>
+                <p>Potential Tesla-xAI merger: Leverage AI, but <span class="highlight">antitrust risks loom.</span></p>
+                <p class="user-takeaway"><strong>Your Takeaway:</strong> Analyze data (e.g., Google Analytics). Test pivots (MVP) before full commitment.</p>
+            </div>
+        </section>
+
+        <section id="resolution-your-edge" class="scene" data-scene-name="Resolution: Your Entrepreneurial Edge">
+            <div class="content-wrapper">
+                <h2 class="scene-title morphing-title" data-text="Your Edge">Your Edge</h2>
+                <p>The journey's lessons, distilled for your venture:</p>
+                <div id="lessons-summary-container">
+                    <!-- Interactive lesson cards will be dynamically inserted here by JS -->
+                </div>
+                <p>Build with vision. Execute with precision. Pivot with purpose.</p>
+                <div id="generative-art-container">
+                    <canvas id="generative-art-canvas"></canvas>
+                    <p class="caption">Your unique exploration path.</p>
+                </div>
+                <p class="tool-suggestion">Free tools to start: Wix, Canva, Grok (ideation).</p>
+                <button id="share-insight-btn" class="cta-button">Share Your Insight</button>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // script.js CONTENT STARTS HERE
+        document.addEventListener('DOMContentLoaded', () => {
+            const experienceContainer = document.getElementById('experience-container');
+            const scenes = document.querySelectorAll('.scene');
+            const loadingScreen = document.getElementById('loading-screen');
+            const srAnnouncer = document.getElementById('sr-announcer');
+
+            // --- Global State & Config ---
+            let currentSceneIndex = -1;
+            const sceneActivationOffset = window.innerHeight * 0.4; // How much of scene is visible to activate
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+
+            const LESSON_DATA = [
+                { id: 1, title: "Vision vs. Execution", takeaway: "Map goals with precise, measurable steps.", tools: [], color: 'var(--accent-color-tesla)' },
+                { id: 2, title: "Regulatory Headwinds", takeaway: "Compliance isn't optional. Budget 10-15% for legal.", tools: [], color: 'var(--accent-color-spacex)' },
+                { id: 3, title: "Public Perception", takeaway: "Monitor sentiment. Balance bold moves.", tools: ['Hootsuite'], color: 'var(--accent-color-neuralink)' },
+                { id: 5, title: "Balance & Well-being", takeaway: "Ambition fuels, burnout kills. Cap hours.", tools: ['Trello'], color: 'var(--success-color)' }, // Note: Lesson 5 comes before 4 in story flow.
+                { id: 4, title: "Pivot Strategically", takeaway: "Analyze data. Test pivots (MVP).", tools: ['Google Analytics'], color: 'var(--warning-color)'}
+            ];
+            let userExplorationPath = [];
+
+
+            // --- Utility Functions ---
+            const throttle = (func, limit) => {
+                let inThrottle;
+                return function() {
+                    const args = arguments;
+                    const context = this;
+                    if (!inThrottle) {
+                        func.apply(context, args);
+                        inThrottle = true;
+                        setTimeout(() => inThrottle = false, limit);
+                    }
+                }
+            };
+
+            const announceToSR = (message) => {
+                if (srAnnouncer) {
+                    srAnnouncer.textContent = message;
+                    // Clear after a bit to allow re-announcement of same message if needed
+                    setTimeout(() => { if(srAnnouncer) srAnnouncer.textContent = ''; }, 1000);
+                }
+            };
+
+
+            // --- Loading Experience ---
+            const initLoadingAnimation = () => {
+                const canvas = document.getElementById('loading-canvas');
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                let particles = [];
+                const particleCount = prefersReducedMotion ? 10 : 50;
+                let t = 0;
+
+                function drawLoading() {
+                    ctx.clearRect(0,0,canvas.width, canvas.height);
+                    ctx.font = '16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = 'var(--text-color)';
+                    
+                    if (prefersReducedMotion) {
+                         ctx.fillText('Loading...', canvas.width / 2, canvas.height / 2);
+                         return;
+                    }
+
+                    // Simple flowing particles
+                    for(let i=0; i<particleCount; i++) {
+                        if (!particles[i]) {
+                            particles[i] = {
+                                x: Math.random() * canvas.width,
+                                y: Math.random() * canvas.height,
+                                speed: Math.random() * 0.5 + 0.2,
+                                size: Math.random() * 2 + 1,
+                                opacity: Math.random() * 0.5 + 0.3
+                            };
+                        }
+                        particles[i].x += particles[i].speed;
+                        if (particles[i].x > canvas.width) {
+                            particles[i].x = 0;
+                            particles[i].y = Math.random() * canvas.height; // Re-enter from left
+                        }
+                        ctx.fillStyle = `rgba(0, 170, 255, ${particles[i].opacity})`;
+                        ctx.fillRect(particles[i].x, particles[i].y, particles[i].size, particles[i].size);
+                    }
+                    t+=0.01;
+                    if(t < 5) requestAnimationFrame(drawLoading); // Keep animating for a bit
+                }
+                if (!prefersReducedMotion) requestAnimationFrame(drawLoading);
+                else drawLoading(); // Single frame for reduced motion
+            };
+
+            const hideLoadingScreen = () => {
+                if (!loadingScreen) return;
+                loadingScreen.classList.add('hidden');
+                // Start the main experience after loading screen fades
+                setTimeout(() => {
+                    if (loadingScreen) loadingScreen.style.display = 'none';
+                    activateScene(0); // Activate the first scene
+                    document.body.style.overflowY = 'auto'; // Allow scrolling
+                }, parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--animation-duration-normal') || '0.5') * 1000);
+            };
+
+
+            // --- Scene Management ---
+            const activateScene = (index) => {
+                if (index === currentSceneIndex || index < 0 || index >= scenes.length) return;
+
+                if (currentSceneIndex !== -1 && scenes[currentSceneIndex]) {
+                    scenes[currentSceneIndex].classList.remove('active');
+                    if (particleAnimations[currentSceneIndex] && particleAnimations[currentSceneIndex].stop) particleAnimations[currentSceneIndex].stop();
+                }
+                
+                if (scenes[index]) {
+                    scenes[index].classList.add('active');
+                    currentSceneIndex = index;
+                
+                    const sceneName = scenes[index].dataset.sceneName || `Section ${index + 1}`;
+                    announceToSR(`Now viewing: ${sceneName}`);
+
+                    if (particleAnimations[index] && particleAnimations[index].start) particleAnimations[index].start();
+                    if (sceneSpecificInitializers[index]) sceneSpecificInitializers[index]();
+                    
+                    scenes[index].querySelectorAll('.morphing-number').forEach(el => morphNumber(el));
+                    scenes[index].querySelectorAll('.morphing-title').forEach(el => animateTitleLetters(el));
+                }
+            };
+
+            const handleScroll = () => {
+                let closestSceneIndex = 0;
+                let minDistance = Infinity;
+
+                scenes.forEach((scene, index) => {
+                    const rect = scene.getBoundingClientRect();
+                    const distance = Math.abs(rect.top - sceneActivationOffset);
+
+                    if (rect.top < window.innerHeight && rect.bottom > 0) { 
+                         if (distance < minDistance) {
+                            minDistance = distance;
+                            closestSceneIndex = index;
+                        }
+                    }
+                });
+                activateScene(closestSceneIndex);
+            };
+
+
+            // --- Particle System (Canvas API) ---
+            const particleAnimations = []; 
+
+            class ParticleSystem {
+                constructor(canvasId, options = {}) {
+                    this.canvas = document.getElementById(canvasId);
+                    if (!this.canvas) {
+                        console.warn(`Canvas with ID ${canvasId} not found.`);
+                        this.isValid = false;
+                        return;
+                    }
+                    this.isValid = true;
+                    this.ctx = this.canvas.getContext('2d');
+                    this.particles = [];
+                    this.options = {
+                        particleCount: prefersReducedMotion ? 10 : 50,
+                        color: 'rgba(255, 255, 255, 0.5)',
+                        speed: 1,
+                        interaction: false,
+                        shape: 'circle',
+                        ...options
+                    };
+                    this.animationFrameId = null;
+                    this.resizeCanvas();
+                    window.addEventListener('resize', throttle(() => this.resizeCanvas(), 200));
+                }
+
+                resizeCanvas() {
+                    if(!this.isValid) return;
+                    this.canvas.width = this.canvas.offsetWidth;
+                    this.canvas.height = this.canvas.offsetHeight;
+                    if(this.particles.length > 0 && this.animationFrameId) this.initParticles(); // Re-init if running
+                }
+
+                initParticles() {
+                    if(!this.isValid) return;
+                    this.particles = [];
+                    for (let i = 0; i < this.options.particleCount; i++) {
+                        this.particles.push({
+                            x: Math.random() * this.canvas.width,
+                            y: Math.random() * this.canvas.height,
+                            vx: (Math.random() - 0.5) * this.options.speed,
+                            vy: (Math.random() - 0.5) * this.options.speed,
+                            radius: Math.random() * 2 + 1,
+                            color: this.options.color,
+                            originalColor: this.options.color,
+                            originalRadius: Math.random() * 2 + 1,
+                            targetX: null,
+                            targetY: null
+                        });
+                    }
+                }
+                
+                updateAndDraw_Default() {
+                    this.particles.forEach(p => {
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        if (p.x - p.radius < 0 || p.x + p.radius > this.canvas.width) p.vx *= -1;
+                        if (p.y - p.radius < 0 || p.y + p.radius > this.canvas.height) p.vy *= -1;
+
+                        this.ctx.beginPath();
+                        this.ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                        this.ctx.fillStyle = p.color;
+                        this.ctx.fill();
+                    });
+                }
+                
+                updateAndDraw_DogeSlash() {
+                    this.particles.forEach(p => {
+                        const targetX = this.canvas.width / 2;
+                        const targetY = this.canvas.height * 0.3;
+                        const dx = targetX - p.x;
+                        const dy = targetY - p.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+
+                        if (dist < this.canvas.width * 0.15) { 
+                            p.radius -= 0.2;
+                            if(p.radius < 0) p.radius = 0;
+                            p.color = 'rgba(255,59,48,0.7)'; 
+                        } else {
+                            p.vx += dx * 0.0005 * this.options.speed;
+                            p.vy += dy * 0.0005 * this.options.speed;
+                            p.color = p.originalColor;
+                        }
+                        p.vx *= 0.98; // damping
+                        p.vy *= 0.98;
+
+                        p.x += p.vx;
+                        p.y += p.vy;
+
+                        if (p.radius > 0) {
+                            this.ctx.beginPath();
+                            this.ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                            this.ctx.fillStyle = p.color;
+                            this.ctx.fill();
+                        }
+                    });
+                    if (this.particles.every(p => p.radius <= 0)) {
+                        this.particles.forEach(p => {
+                            p.radius = p.originalRadius;
+                            p.x = Math.random() * this.canvas.width;
+                            p.y = Math.random() * this.canvas.height;
+                            p.vx = (Math.random() - 0.5) * this.options.speed;
+                            p.vy = (Math.random() - 0.5) * this.options.speed;
+                        });
+                    }
+                }
+
+                updateAndDraw_LegalStorm() {
+                    this.particles.forEach(p => {
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        
+                        if (p.x < 0 || p.x > this.canvas.width) p.vx = (Math.random() - 0.5) * this.options.speed * 2.5 * (p.x < 0 ? 1 : -1);
+                        if (p.y < 0 || p.y > this.canvas.height) p.vy = (Math.random() - 0.5) * this.options.speed * 2.5 * (p.y < 0 ? 1 : -1);
+
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(p.x, p.y);
+                        this.ctx.lineTo(p.x + (Math.random()-0.5)*15, p.y + (Math.random()-0.5)*15);
+                        this.ctx.strokeStyle = p.color;
+                        this.ctx.lineWidth = p.radius * 0.8;
+                        this.ctx.stroke();
+                    });
+                }
+
+                animate() {
+                    if(!this.isValid || prefersReducedMotion) { // Skip animation if reduced motion
+                        if(prefersReducedMotion && this.isValid) { // Draw one frame for reduced motion
+                           this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                           if (this.particles.length === 0) this.initParticles(); // Ensure particles exist
+                           this.updateAndDraw_Default(); // Simple static display
+                        }
+                        return;
+                    }
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                    
+                    if (this.options.customDrawLoop) {
+                        this.options.customDrawLoop(this.ctx, this.particles, this.canvas);
+                    } else if (this.options.behavior === 'dogeSlash') {
+                        this.updateAndDraw_DogeSlash();
+                    } else if (this.options.behavior === 'legalStorm') {
+                        this.updateAndDraw_LegalStorm();
+                    } else {
+                        this.updateAndDraw_Default();
+                    }
+
+                    this.animationFrameId = requestAnimationFrame(() => this.animate());
+                }
+
+                start() {
+                    if (!this.isValid || (this.animationFrameId && !prefersReducedMotion)) return; 
+                    if (this.particles.length === 0) this.initParticles();
+                    this.animate();
+                }
+
+                stop() {
+                    if(!this.isValid || !this.animationFrameId || prefersReducedMotion) return;
+                    cancelAnimationFrame(this.animationFrameId);
+                    this.animationFrameId = null;
+                }
+            }
+
+            // Initialize particle systems for each canvas
+            particleAnimations.push(new ParticleSystem('empire-canvas', { particleCount: 100, color: 'rgba(0, 170, 255, 0.3)', speed: 0.5 }));
+            particleAnimations.push(new ParticleSystem('doge-canvas', { particleCount: 150, color: 'rgba(128, 128, 128, 0.4)', speed: 0.8, behavior: 'dogeSlash' }));
+            particleAnimations.push(new ParticleSystem('lesson1-canvas', { particleCount: 70, color: 'rgba(0, 170, 255, 0.2)', speed: 0.3 }));
+            particleAnimations.push(new ParticleSystem('storm-canvas', { particleCount: 80, color: 'rgba(255, 59, 48, 0.5)', speed: 1.5, behavior: 'legalStorm' }));
+            particleAnimations.push(new ParticleSystem('lesson2-canvas', { particleCount: 60, color: 'rgba(255, 69, 0, 0.3)', speed: 0.2 }));
+            particleAnimations.push(new ParticleSystem('lesson3-canvas', { particleCount: 100, color: 'rgba(255, 204, 0, 0.3)', speed: 0.7 }));
+            particleAnimations.push(new ParticleSystem('lesson5-canvas', { particleCount: 50, color: 'rgba(52, 199, 89, 0.3)', speed: 0.4 }));
+            particleAnimations.push(new ParticleSystem('pivot-canvas', { particleCount: 120, color: 'rgba(52, 199, 89, 0.5)', speed: 1 }));
+            particleAnimations.push(new ParticleSystem('lesson4-canvas', { particleCount: 60, color: 'rgba(255, 149, 0, 0.3)', speed: 0.6 })); // Added for lesson 4
+            particleAnimations.push(null); // For resolution scene, no main particle system yet.
+
+
+            // --- Morphing Typography & Numbers ---
+            const morphNumber = (element) => {
+                if (element.classList.contains('morphed')) return;
+                element.classList.add('morphed'); // Mark as processing/done
+
+                const target = parseFloat(element.dataset.target);
+                if (isNaN(target)) {
+                    console.warn('Invalid target for morphNumber:', element.dataset.target);
+                    element.textContent = element.dataset.prefix + (element.dataset.target || 'N/A') + element.dataset.suffix;
+                    return;
+                }
+                const prefix = element.dataset.prefix || '';
+                const suffix = element.dataset.suffix || '';
+                const isPercentage = element.dataset.isPercentage === 'true';
+                let current = 0;
+
+                if (prefersReducedMotion) {
+                    element.textContent = prefix + target.toLocaleString() + (isPercentage ? '%' : suffix);
+                    return;
+                }
+
+                const duration = 1500; 
+                const stepTime = Math.max(16, 50 - target.toString().length * 2); // Faster for smaller numbers, min 16ms for ~60fps
+                const steps = duration / stepTime;
+                const increment = target / steps;
+
+                const updateNumber = () => {
+                    current += increment;
+                    if (current >= target) {
+                        current = target;
+                        element.textContent = prefix + target.toLocaleString() + (isPercentage ? '%' : suffix);
+                        clearInterval(timer);
+                    } else {
+                        element.textContent = prefix + Math.floor(current).toLocaleString() + (isPercentage ? '%' : suffix);
+                    }
+                };
+                const timer = setInterval(updateNumber, stepTime);
+            };
+            
+            const animateTitleLetters = (element) => {
+                if (element.classList.contains('title-animated') || !element.dataset.text) return;
+                element.classList.add('title-animated');
+                const text = element.dataset.text;
+                element.innerHTML = ''; 
+                
+                text.split('').forEach((char, index) => {
+                    const span = document.createElement('span');
+                    span.textContent = char === ' ' ? '\u00A0' : char; 
+                    if (!prefersReducedMotion) {
+                        span.style.opacity = '0';
+                        span.style.transform = 'translateY(20px)';
+                        span.style.transition = `opacity 0.5s ${index * 0.05}s ease-out, transform 0.5s ${index * 0.05}s ease-out`;
+                    }
+                    element.appendChild(span);
+                    if (!prefersReducedMotion) {
+                        requestAnimationFrame(() => { // Ensures styles are applied before transition starts
+                           requestAnimationFrame(() => { // Double rAF for some browsers
+                                span.style.opacity = '1';
+                                span.style.transform = 'translateY(0px)';
+                           });
+                        });
+                    } else {
+                        span.style.opacity = '1'; // Just make visible if reduced motion
+                    }
+                });
+            };
+
+
+            // --- Interactive Elements & Discovery ---
+            const initInteractions = () => {
+                const beginBtn = document.getElementById('begin-journey-btn');
+                if (beginBtn) {
+                    beginBtn.addEventListener('click', () => {
+                        const nextScene = document.getElementById('act-one-doge');
+                        if (nextScene) {
+                            nextScene.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth' });
+                        }
+                        playInteractionSound('click');
+                    });
+                }
+            };
+
+
+            // --- Resolution Scene: Lesson Cards & Generative Art ---
+            const populateLessonCards = () => {
+                const container = document.getElementById('lessons-summary-container');
+                if (!container) return;
+                container.innerHTML = ''; // Clear any existing
+                LESSON_DATA.forEach(lesson => {
+                    const card = document.createElement('div');
+                    card.classList.add('lesson-card');
+                    card.setAttribute('tabindex', '0'); 
+                    card.setAttribute('role', 'button');
+                    card.setAttribute('aria-label', `Lesson ${lesson.id}: ${lesson.title}. ${lesson.takeaway}`);
+                    card.style.setProperty('--lesson-color', lesson.color); // For potential card-specific styling
+                    card.innerHTML = `
+                        <h4>Lesson ${lesson.id}: ${lesson.title}</h4>
+                        <p>${lesson.takeaway}</p>
+                        ${lesson.tools.length > 0 ? `<p class="tools">Tools: ${lesson.tools.join(', ')} <span class="tool-icon" aria-hidden="true">🛠️</span></p>` : ''}
+                    `;
+                    card.addEventListener('click', () => handleLessonCardClick(lesson, card));
+                    card.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleLessonCardClick(lesson, card);
+                        }
+                    });
+                    container.appendChild(card);
+                });
+            };
+
+            const handleLessonCardClick = (lesson, cardElement) => {
+                document.querySelectorAll('.lesson-card.active-lesson').forEach(c => c.classList.remove('active-lesson'));
+                cardElement.classList.add('active-lesson');
+
+                if (!userExplorationPath.includes(lesson.id)) {
+                    userExplorationPath.push(lesson.id);
+                }
+                updateGenerativeArt(lesson);
+                playInteractionSound('confirm'); 
+                announceToSR(`Selected lesson: ${lesson.title}`);
+            };
+
+            const generativeArtCanvas = document.getElementById('generative-art-canvas');
+            let generativeArtCtx = generativeArtCanvas ? generativeArtCanvas.getContext('2d') : null;
+            let generativeArtAngle = 0;
+            let generativeArtRadiusMultiplier = 0.1;
+
+            const setupGenerativeArtCanvas = () => {
+                if(!generativeArtCtx || !generativeArtCanvas) return;
+                generativeArtCanvas.width = generativeArtCanvas.offsetWidth;
+                generativeArtCanvas.height = generativeArtCanvas.offsetHeight;
+                generativeArtCtx.fillStyle = 'rgba(10,15,24,0.8)'; 
+                generativeArtCtx.fillRect(0,0,generativeArtCanvas.width, generativeArtCanvas.height);
+                generativeArtCtx.globalAlpha = 1; // Reset alpha
+                generativeArtAngle = 0; // Reset angle
+                generativeArtRadiusMultiplier = 0.1; // Reset radius
+            };
+            
+            const updateGenerativeArt = (lesson) => {
+                if (!generativeArtCtx || !generativeArtCanvas) return;
+                
+                const centerX = generativeArtCanvas.width / 2;
+                const centerY = generativeArtCanvas.height / 2;
+                const maxRadius = Math.min(centerX, centerY) * 0.9;
+
+                generativeArtCtx.beginPath();
+                generativeArtCtx.moveTo(centerX + maxRadius * (generativeArtRadiusMultiplier - 0.1) * Math.cos(generativeArtAngle - Math.PI / 3), 
+                                        centerY + maxRadius * (generativeArtRadiusMultiplier - 0.1) * Math.sin(generativeArtAngle - Math.PI / 3));
+                
+                const x = centerX + maxRadius * generativeArtRadiusMultiplier * Math.cos(generativeArtAngle);
+                const y = centerY + maxRadius * generativeArtRadiusMultiplier * Math.sin(generativeArtAngle);
+                generativeArtCtx.lineTo(x,y);
+                
+                generativeArtCtx.strokeStyle = lesson.color || 'var(--text-color)';
+                generativeArtCtx.lineWidth = Math.max(1, 4 - userExplorationPath.length * 0.5); // Line gets thinner with more clicks
+                generativeArtCtx.stroke();
+                
+                generativeArtAngle += Math.PI / 3; // Increment angle for spiral/starburst
+                if (generativeArtAngle >= Math.PI * 2) { 
+                    generativeArtAngle -= Math.PI * 2;
+                    generativeArtRadiusMultiplier = Math.min(1, generativeArtRadiusMultiplier + 0.15); // Grow outwards
+                    if (generativeArtRadiusMultiplier >= 1) {
+                         generativeArtCtx.globalAlpha = Math.max(0.3, generativeArtCtx.globalAlpha * 0.8); // Fade older layers
+                    }
+                }
+            };
+
+            // --- Web Audio API for Sound Design ---
+            let audioCtx;
+            const sounds = {};
+            let audioInitialized = false;
+
+            const initAudio = () => {
+                if (audioInitialized || prefersReducedMotion) return; // Don't init if already done or reduced motion
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    sounds.click = createSynthSound(200, 'sine', 0.05);
+                    sounds.confirm = createSynthSound(440, 'triangle', 0.1);
+                    sounds.reveal = createSynthSound([300, 450, 600], 'sawtooth', 0.2, 0.03, 0.03);
+                    audioInitialized = true;
+                } catch (e) {
+                    console.warn("Web Audio API is not supported or could not be initialized.");
+                }
+            };
+            
+            // One-time user gesture to unlock audio
+            function unlockAudio() {
+                if (!audioInitialized && !prefersReducedMotion) {
+                    initAudio();
+                     // Remove this listener once audio is unlocked
+                    document.removeEventListener('click', unlockAudio);
+                    document.removeEventListener('keydown', unlockAudio);
+                }
+            }
+            document.addEventListener('click', unlockAudio, { once: true });
+            document.addEventListener('keydown', unlockAudio, { once: true });
+
+
+            const createSynthSound = (frequency, type, duration, attackTime = 0.01, decayTime = 0.05) => {
+                if (!audioCtx) return () => {}; // Return a no-op function if audioCtx is not available
+                return () => { 
+                    if (!audioCtx) return; // Double check
+                    const baseVolume = 0.3; // General volume reduction
+
+                    if (Array.isArray(frequency)) { 
+                        frequency.forEach((freq, i) => {
+                            const osc = audioCtx.createOscillator();
+                            const gain = audioCtx.createGain();
+                            osc.connect(gain);
+                            gain.connect(audioCtx.destination);
+                            
+                            const startTime = audioCtx.currentTime + i * (duration / frequency.length * 0.5);
+                            osc.frequency.setValueAtTime(freq, startTime);
+                            osc.type = type;
+                            gain.gain.setValueAtTime(0, startTime);
+                            gain.gain.linearRampToValueAtTime(baseVolume * 0.5, startTime + attackTime); 
+                            gain.gain.linearRampToValueAtTime(0, startTime + duration - (i * (duration / frequency.length * 0.3)));
+                            osc.start(startTime);
+                            osc.stop(startTime + duration + decayTime);
+                        });
+                        return;
+                    }
+
+                    const oscillator = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+
+                    oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+                    oscillator.type = type; 
+                    
+                    gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(baseVolume, audioCtx.currentTime + attackTime); 
+                    gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration); 
+
+                    oscillator.start(audioCtx.currentTime);
+                    oscillator.stop(audioCtx.currentTime + duration + decayTime); 
+                };
+            };
+
+            const playInteractionSound = (soundName) => {
+                if (audioCtx && sounds[soundName] && typeof sounds[soundName] === 'function' && !prefersReducedMotion) {
+                    sounds[soundName]();
+                }
+            };
+
+            // --- Share Functionality ---
+            const initShareButton = () => {
+                const shareBtn = document.getElementById('share-insight-btn');
+                if (shareBtn) {
+                    shareBtn.addEventListener('click', () => {
+                        const shareData = {
+                            title: 'The Elon Iteration: Interactive Lessons for Entrepreneurs',
+                            text: 'Discovered some fascinating insights from this interactive data story on navigating business challenges. Check it out!',
+                            url: window.location.href
+                        };
+                        if (navigator.share) {
+                            navigator.share(shareData)
+                                .then(() => console.log('Shared successfully'))
+                                .catch((error) => {
+                                    console.log('Error sharing:', error);
+                                    alert(`Share this link: ${shareData.url}\n"${shareData.text}"`); // Fallback on error
+                                });
+                        } else {
+                            alert(`Share this link: ${shareData.url}\n"${shareData.text}"`);
+                        }
+                        playInteractionSound('reveal');
+                    });
+                }
+            };
+
+            // --- Scene Specific Initializers ---
+            const sceneSpecificInitializers = [];
+            sceneSpecificInitializers[0] = () => { // Opening Hook
+                playInteractionSound('reveal'); 
+            };
+            // Initializer for resolution scene to reset generative art
+            sceneSpecificInitializers[scenes.length -1] = () => { // Assuming resolution is last
+                if (generativeArtCanvas && generativeArtCtx) {
+                    userExplorationPath = []; // Reset path for new "portrait"
+                    setupGenerativeArtCanvas(); // Clear and setup canvas
+                }
+            };
+
+
+            // --- Main Initialization ---
+            const init = () => {
+                // initAudio(); // Moved to user gesture
+                initLoadingAnimation(); 
+                
+                setTimeout(() => {
+                    hideLoadingScreen();
+                    initInteractions();
+                    populateLessonCards();
+                    if(generativeArtCanvas) setupGenerativeArtCanvas();
+                    initShareButton();
+                    
+                    window.addEventListener('scroll', throttle(handleScroll, 100));
+                    handleScroll(); 
+                    
+                    document.querySelectorAll('.scene.active .morphing-title').forEach(el => animateTitleLetters(el));
+
+                    console.log("Interactive Data Story Initialized.");
+                    announceToSR("Interactive Data Story loaded. Scroll to explore.");
+
+                }, prefersReducedMotion ? 500 : 2800); // Faster load for reduced motion or if assets are "lighter"
+            };
+
+            init();
+        });
+        // script.js CONTENT ENDS HERE
+    </script>
+</body>
+</html>
